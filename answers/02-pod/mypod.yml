@@ -1,0 +1,16 @@
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: isura-ckad-nginx
+  namespace: ckad-prep
+  labels:
+    app: isura-nginx
+
+
+spec:
+  containers:
+    - name: isura-ckad-nginx
+      image: nginx:1.15.12
+      ports:
+        - containerPort: 80

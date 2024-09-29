@@ -1,0 +1,93 @@
+= Answers
+
+=== Pods
+
+[source,bash]
+----
+kubectl create namespace ckad-prep
+
+# create pod without yaml
+kubectl run mypod --image=nginx:2.3.5 --restart=Never --port=80 --namespace=ckad-prep
+# pod/mypod created
+----
+
+You will see that the image cannot be pulled as it doesn't exist with this tag on https://hub.docker.com/_/nginx/tags?page=1&name=2.3.5[Dockerhub].
+
+----
+$ kubectl get pods -n ckad-prep
+NAME    READY   STATUS             RESTARTS   AGE
+mypod   0/1     ImagePullBackOff   0          1m
+----
+
+You can shell into the container and run the `ls` command.
+
+----
+$ kubectl exec mypod -it --namespace=ckad-prep  -- /bin/sh
+# ls
+bin  boot  dev	etc  home  lib	lib64  media  mnt  opt	proc  root  run  sbin  srv  sys  tmp  usr  var
+# exit
+----
+
+Retrieve the IP address of the Pod with the `-o wide` command line option.
+
+----
+$ kubectl get pods -o wide -n ckad-prep
+NAME    READY   STATUS    RESTARTS   AGE   IP               NODE
+mypod   1/1     Running   0          12m   192.168.60.149   docker-for-desktop
+----
+
+Remember to use the `--rm` to create a temporary Pod.
+
+----
+$ kubectl run busybox --image=busybox --rm -it --restart=Never -n ckad-prep -- /bin/sh
+----
+
+The logs of the Pod should show a single line indicating our request.
+
+----
+$ kubectl logs mypod -n ckad-prep
+192.168.60.162 - - [17/May/2019:13:35:59 +0000] "GET / HTTP/1.1" 200 612 "-" "Wget" "-"
+----
+
+Delete the Pod and namespace after you are done.
+
+----
+$ kubectl delete pod mypod --namespace=ckad-prep
+pod "mypod" deleted
+$ kubectl delete namespace ckad-prep
+namespace "ckad-prep" deleted
+----
+
+==== Notes
+
+* The `containerPort: 80` field in a Kubernetes Pod YAML specifies that the container inside the pod will expose port 80 for communication.
+* This is the port on which the containerized application (such as a web server) will listen for incoming traffic.
+* Key Points:
+containerPort: Defines the port number that the application inside the container listens to. In this case, 80 is commonly used by web servers like Nginx, Apache, etc., since HTTP traffic usually flows through port 80.
+
+This configuration is for internal communication within the Pod or between containers inside the same Pod. It makes the container's port accessible to the Kubernetes network.
+
+=== Services
+
+The pod configuration you've shared is not sufficient to access Nginx on localhost from your machine, even though you have specified containerPort: 80. Here’s why:
+
+What the Configuration Does:
+Pod: It creates a pod that runs a Nginx container inside your Kubernetes cluster.
+containerPort: 80: This allows the container to listen on port 80 within the pod itself. However, this does not expose the pod to the outside world (e.g., your local machine).
+Why This is Not Enough:
+Pod Isolation: By default, Kubernetes pods are isolated from external access. The pod is only accessible within the Kubernetes cluster or by other pods running in the same cluster.
+
+No Service Defined: In Kubernetes, if you want to access a pod from outside the cluster (or from your local machine), you need to define a Service. A Service will expose the pod's container to external traffic, or at least make it available within the cluster on a network-accessible IP.
+
+Cluster Network and Localhost: The pod is running inside the Kubernetes cluster's network (Rancher Desktop in your case), not directly on your local machine's network. Therefore, accessing localhost:80 on your machine won't work unless you properly expose it.
+
+Solution: Use a Kubernetes Service
+To access the Nginx pod from outside the cluster, you need to create a Service to expose it. For example, a NodePort or LoadBalancer service will allow you to access it from localhost.
+
+Here’s a simple Service YAML for NodePort:
+
+[source,bash]
+----
+kubectl apply -f mypod_service.yml
+
+----
